@@ -1,7 +1,7 @@
 [project]
 name = "make-it-animatable"
 description = "Converts an input 3D model into an animation-ready rigged GLB file in Mixamo bone format"
-version = "1.0.0"
+version = "1.0.1"
 license = {file = "LICENSE"} 
 # classifiers = [
 #     # For OS-independent nodes (works on all operating systems)
