@@ -140,12 +140,12 @@ def run_make_it_animatable(input_path: str, **node_kwargs):
 
     REPO_DIR = NODE_DIR / "Make_It_Animatable"
     python = REPO_DIR / "venv311" / "Scripts" / "python"
-    
+
     use_gs = node_kwargs.get("is_gs", False)
     suffix = ".blend" if use_gs else ".glb"
     rigged_suffix = f"_rigged{suffix}"
-    
-    output_file = Path(Path(input_path).with_suffix("").as_posix() + rigged_suffix)    
+
+    output_file = Path(Path(input_path).with_suffix("").as_posix() + rigged_suffix)
     if output_file.exists():
         output_file.unlink()
 
@@ -203,7 +203,7 @@ class MakeItAnimatableRig:
         if not os.path.isfile(input_path):
             raise RuntimeError(f"Input model not found: {input_path}")
 
-        result = run_make_it_animatable(input_path, is_gs=False, no_fingers=no_fingers, input_normal=use_normals, bw_fix=weight_postprocess)
+        result = run_make_it_animatable(input_path, is_gs=False, no_fingers=no_fingers, input_normal=use_normals, bw_fix=weight_postprocess, inplace=False)
         return (result,)
     
 class MakeItAnimatableRigGS:
@@ -246,7 +246,7 @@ class MakeItAnimatableRigGS:
         if not os.path.isfile(input_path):
             raise RuntimeError(f"Input model not found: {input_path}")
 
-        result = run_make_it_animatable(input_path, is_gs=True, opacity_threshold=opacity_threshold, no_fingers=no_fingers, input_normal=use_normals, bw_fix=weight_postprocess)
+        result = run_make_it_animatable(input_path, is_gs=True, opacity_threshold=opacity_threshold, no_fingers=no_fingers, input_normal=use_normals, bw_fix=weight_postprocess, inplace=False)
         return (result,)
 
 NODE_CLASS_MAPPINGS = {
