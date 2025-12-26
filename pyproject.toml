@@ -28,7 +28,7 @@ Documentation = "https://github.com/speige/ComfyUI_Make-It-Animatable/wiki"
 "Bug Tracker" = "https://github.com/speige/ComfyUI_Make-It-Animatable/issues"
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "speige"
 DisplayName = "ComfyUI_Make-It-Animatable"
 Icon = ""
 includes = [] 
