@@ -4,6 +4,7 @@ import sys
 import subprocess, json, tempfile
 from huggingface_hub import snapshot_download
 import huggingface_hub
+import folder_paths
 
 NODE_DIR = Path(__file__).parent.resolve()
 REPO_NAME = "Make_It_Animatable"
@@ -145,7 +146,11 @@ def run_make_it_animatable(input_path: str, **node_kwargs):
     suffix = ".blend" if use_gs else ".glb"
     rigged_suffix = f"_rigged{suffix}"
 
-    output_file = Path(Path(input_path).with_suffix("").as_posix() + rigged_suffix)
+    input_filename = Path(input_path).stem
+    output_filename = f"{input_filename}{rigged_suffix}"
+    output_dir = folder_paths.get_output_directory()
+    output_file = Path(output_dir) / output_filename
+
     if output_file.exists():
         output_file.unlink()
 
