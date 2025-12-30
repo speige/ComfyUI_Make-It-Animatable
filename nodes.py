@@ -109,14 +109,21 @@ def ensure_repo_venv():
         return
 
     venv_dir = REPO_DIR / "venv311"
-    uv = os.path.join(sys.prefix, "Scripts", "uv.exe")
     python = venv_dir / "Scripts" / "python"
     pip = venv_dir / "Scripts" / "pip3.exe"
-    if not (pip).exists():
+    uv = os.path.join(sys.prefix, "Scripts", "uv.exe")
+
+    is_python_embedded = Path(sys.executable).parent.name == "python_embeded"
+    if is_python_embedded:
+        embedded_python = Path(sys.executable).parent / "python"
+        run_cmd([str(embedded_python), "-m", "pip", "install", "uv"])
+
+    run_cmd([uv, "venv", "--python", "3.11", str(venv_dir)])
+
+    if not pip.exists():
         print("[Make-It-Animatable] Installing Python dependencies from requirements.txt...")
-        run_cmd([uv, "venv", "--python", "3.11", str(venv_dir)])
-        run_cmd([python, "-m", "ensurepip", "--upgrade"])
-        run_cmd([pip, "install", "-r", str(req_file)])
+        run_cmd([str(python), "-m", "ensurepip", "--upgrade"])
+        run_cmd([str(pip), "install", "-r", str(req_file)])
 
 setup_complete = [False]
 def setup_make_it_animatable():
