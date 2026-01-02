@@ -186,6 +186,9 @@ class MakeItAnimatableRig:
                 "no_fingers": ("BOOLEAN", {"default": True, "tooltip": "Whether the input model does not have ten separate fingers. Can also be used if the output has unsatisfactory finger results."}),
                 "use_normals": ("BOOLEAN", {"default": False, "tooltip": "Use normal information to improve performance when the input has limbs close to other ones."}),
                 "weight_postprocess": ("BOOLEAN", {"default": True, "tooltip": "Apply some empirical post-processes to the blend weights."}),
+            },
+            "optional": {
+                "animation_file": ("STRING", {"multiline": True, "default": "", "tooltip": "Path to Mixamo animation file to bake. Can be a single path or multiple paths separated by newlines or carriage returns."}),
             }
         }
 
@@ -206,7 +209,8 @@ class MakeItAnimatableRig:
         no_fingers: bool,
         use_normals: bool,
         weight_postprocess: bool,
-    ):      
+        animation_file: str = "",
+    ):
         setup_make_it_animatable()
 
         input_path = input_model_path.strip()
@@ -215,7 +219,7 @@ class MakeItAnimatableRig:
         if not os.path.isfile(input_path):
             raise RuntimeError(f"Input model not found: {input_path}")
 
-        result = run_make_it_animatable(input_path, is_gs=False, no_fingers=no_fingers, input_normal=use_normals, bw_fix=weight_postprocess, inplace=False)
+        result = run_make_it_animatable(input_path, is_gs=False, no_fingers=no_fingers, input_normal=use_normals, bw_fix=weight_postprocess, reset_to_rest=True, inplace=True, animation_file=animation_file if animation_file.strip() else None)
         return (result,)
     
 class MakeItAnimatableRigGS:
@@ -228,6 +232,9 @@ class MakeItAnimatableRigGS:
                 "no_fingers": ("BOOLEAN", {"default": True, "tooltip": "Whether the input model does not have ten separate fingers. Can also be used if the output has unsatisfactory finger results."}),
                 "use_normals": ("BOOLEAN", {"default": False, "tooltip": "Use normal information to improve performance when the input has limbs close to other ones."}),
                 "weight_postprocess": ("BOOLEAN", {"default": True, "tooltip": "Apply some empirical post-processes to the blend weights."}),
+            },
+            "optional": {
+                "animation_file": ("STRING", {"multiline": True, "default": "", "tooltip": "Path to Mixamo animation file to bake. Can be a single path or multiple paths separated by newlines or carriage returns."}),
             }
         }
 
@@ -249,7 +256,8 @@ class MakeItAnimatableRigGS:
         no_fingers: bool,
         use_normals: bool,
         weight_postprocess: bool,
-    ):      
+        animation_file: str = "",
+    ):
         setup_make_it_animatable()
 
         input_path = input_model_path.strip()
@@ -258,7 +266,7 @@ class MakeItAnimatableRigGS:
         if not os.path.isfile(input_path):
             raise RuntimeError(f"Input model not found: {input_path}")
 
-        result = run_make_it_animatable(input_path, is_gs=True, opacity_threshold=opacity_threshold, no_fingers=no_fingers, input_normal=use_normals, bw_fix=weight_postprocess, inplace=False)
+        result = run_make_it_animatable(input_path, is_gs=True, opacity_threshold=opacity_threshold, no_fingers=no_fingers, input_normal=use_normals, bw_fix=weight_postprocess, reset_to_rest=True, inplace=True, animation_file=animation_file if animation_file.strip() else None)
         return (result,)
 
 NODE_CLASS_MAPPINGS = {
