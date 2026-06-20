@@ -47,7 +47,7 @@ def apply_patches():
 
     print("[Make-It-Animatable] Applying local patches...")
     for patch_file in sorted(patch_dir.glob("*.patch")):
-        print(f"  → Applying {patch_file.name}")
+        print(f"  -> Applying {patch_file.name}")
         result = subprocess.run(
             ["git", "apply", str(patch_file)],
             cwd=REPO_DIR,
@@ -102,6 +102,68 @@ def download_mixamo_bones():
     )
     print("[Make-It-Animatable] Mixamo data downloaded successfully!")
 
+def find_uv_executable():
+    import shutil
+    import sysconfig
+
+    # 1. Try to find uv in PATH
+    uv_path = shutil.which("uv")
+    if uv_path:
+        return uv_path
+
+    # 2. Try importing 'uv' package and using find_uv_bin()
+    try:
+        import uv
+        uv_path = uv.find_uv_bin()
+        if uv_path and os.path.exists(uv_path):
+            return uv_path
+    except (ImportError, AttributeError, Exception):
+        pass
+
+    # 3. Check common sysconfig/sys paths
+    search_dirs = []
+
+    # sys.prefix (active venv)
+    search_dirs.append(os.path.join(sys.prefix, "Scripts") if sys.platform == "win32" else os.path.join(sys.prefix, "bin"))
+    search_dirs.append(sys.prefix)
+
+    # sys.base_prefix (base Python environment)
+    if hasattr(sys, "base_prefix") and sys.base_prefix:
+        search_dirs.append(os.path.join(sys.base_prefix, "Scripts") if sys.platform == "win32" else os.path.join(sys.base_prefix, "bin"))
+        search_dirs.append(sys.base_prefix)
+
+    # sysconfig paths
+    try:
+        search_dirs.append(sysconfig.get_path("scripts"))
+    except Exception:
+        pass
+    try:
+        search_dirs.append(sysconfig.get_path("scripts", vars={"base": getattr(sys, "base_prefix", sys.prefix)}))
+    except Exception:
+        pass
+
+    # Relative to sys.executable
+    exe_dir = os.path.dirname(sys.executable)
+    search_dirs.append(exe_dir)
+    search_dirs.append(os.path.join(exe_dir, "Scripts"))
+    search_dirs.append(os.path.dirname(exe_dir)) # One level up
+
+    # Check all search dirs for 'uv' or 'uv.exe'
+    binary_name = "uv.exe" if sys.platform == "win32" else "uv"
+    seen = set()
+    for d in search_dirs:
+        if not d:
+            continue
+        d_abs = os.path.abspath(d)
+        if d_abs in seen:
+            continue
+        seen.add(d_abs)
+        candidate = os.path.join(d_abs, binary_name)
+        if os.path.isfile(candidate):
+            return candidate
+
+    return None
+
 def ensure_repo_venv():
     req_file = REPO_DIR / "requirements.txt"
     if not req_file.exists():
@@ -109,21 +171,39 @@ def ensure_repo_venv():
         return
 
     venv_dir = REPO_DIR / "venv311"
-    python = venv_dir / "Scripts" / "python"
-    pip = venv_dir / "Scripts" / "pip3.exe"
-    uv = os.path.join(sys.prefix, "Scripts", "uv.exe")
+    marker_file = venv_dir / "install_completed.marker"
+    if venv_dir.exists() and marker_file.exists():
+        return
 
-    is_python_embedded = Path(sys.executable).parent.name == "python_embeded"
-    if is_python_embedded:
-        embedded_python = Path(sys.executable).parent / "python"
-        run_cmd([str(embedded_python), "-m", "pip", "install", "uv"])
+    if sys.platform == "win32":
+        python = venv_dir / "Scripts" / "python.exe"
+    else:
+        python = venv_dir / "bin" / "python"
 
-    run_cmd([uv, "venv", "--python", "3.11", str(venv_dir)])
+    uv = find_uv_executable()
 
-    if not pip.exists():
-        print("[Make-It-Animatable] Installing Python dependencies from requirements.txt...")
-        run_cmd([str(python), "-m", "ensurepip", "--upgrade"])
-        run_cmd([str(pip), "install", "-r", str(req_file)])
+    if not uv:
+        print("[Make-It-Animatable] uv binary not found. Attempting to install it...")
+        is_python_embedded = Path(sys.executable).parent.name == "python_embeded"
+        if is_python_embedded:
+            embedded_python = Path(sys.executable).parent / "python"
+            run_cmd([str(embedded_python), "-m", "pip", "install", "uv"])
+        else:
+            run_cmd([sys.executable, "-m", "pip", "install", "uv"])
+        
+        # Try finding uv again after installation
+        uv = find_uv_executable()
+
+    if not uv:
+        raise FileNotFoundError("[Make-It-Animatable] Could not find or install the 'uv' binary.")
+
+    run_cmd([str(uv), "venv", "--clear", "--python", "3.11", str(venv_dir)])
+
+    print("[Make-It-Animatable] Installing Python dependencies from requirements.txt...")
+    run_cmd([str(uv), "pip", "install", "--python", str(python), "-r", str(req_file)])
+    
+    # Touch the marker file to flag that the installation succeeded
+    marker_file.touch()
 
 setup_complete = [False]
 def setup_make_it_animatable():
@@ -139,6 +219,18 @@ def setup_make_it_animatable():
         setup_complete[0] = True
 
     except Exception as e:
+        err_msg = str(e)
+        if "GatedRepoError" in type(e).__name__ or "401 Client Error" in err_msg or "gated repo" in err_msg.lower():
+            print("\n" + "="*80)
+            print("[Make-It-Animatable] ERROR: Failed to download gated Hugging Face files.")
+            print("Access to the jasongzy/Mixamo dataset is restricted (gated).")
+            print("To resolve this:")
+            print("1. Log in to Hugging Face or create an account if you don't have one.")
+            print("2. Visit https://huggingface.co/datasets/jasongzy/Mixamo and click 'Agree' or accept the terms to request access.")
+            print("3. Authenticate your local machine by either:")
+            print("   - Setting the HF_TOKEN environment variable in your terminal/system.")
+            print("   - Or running: huggingface-cli login")
+            print("="*80 + "\n")
         print(f"[Make-It-Animatable] SETUP FAILED: {e}")
         raise
 

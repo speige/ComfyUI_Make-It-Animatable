@@ -1,0 +1,77 @@
+diff --git a/util/blender_utils.py b/util/blender_utils.py
+index 5e747d1..5ff32c7 100644
+--- a/util/blender_utils.py
++++ b/util/blender_utils.py
+@@ -584,24 +584,59 @@ def load_3dgs(filepath: str) -> "list[Object]":
+     return imported_objs
+ 
+ 
+-def load_mixamo_anim(char_file: str, anim_file: str, do_retarget=False, inplace=False, to_tris=False):
++def load_mixamo_anim(char_file: str, anim_file, do_retarget=False, inplace=False, to_tris=False):
+     char_objs = load_file(char_file) if isinstance(char_file, str) else char_file
+     char_armature = get_armature_obj(char_objs)
+ 
+-    anim_objs = load_file(anim_file)
+-    anim_armature = get_armature_obj(anim_objs)
+-    print(anim_armature)
+-    print(anim_armature.animation_data)
+-    assert anim_armature.animation_data is not None and len(bpy.data.actions) > 0, f"Animation not found in {anim_file}"
++    if isinstance(anim_file, str):
++        anim_files = [anim_file]
++    else:
++        anim_files = anim_file
+ 
+-    set_action(char_armature, anim_armature.animation_data.action)
+-    if do_retarget:
+-        retarget(anim_armature, char_armature, inplace=inplace)
+-        for action in bpy.data.actions:
+-            if action is not char_armature.animation_data.action:
++    preserved_actions = []
++
++    for f in anim_files:
++        anim_objs = load_file(f)
++        anim_armature = get_armature_obj(anim_objs)
++        print(anim_armature)
++        print(anim_armature.animation_data)
++        assert anim_armature.animation_data is not None and len(bpy.data.actions) > 0, f"Animation not found in {f}"
++
++        source_action = anim_armature.animation_data.action
++        set_action(char_armature, source_action)
++
++        if do_retarget:
++            retarget(anim_armature, char_armature, inplace=inplace)
++            retargeted_action = char_armature.animation_data.action
++            retargeted_action.name = os.path.splitext(os.path.basename(f))[0]
++        else:
++            source_action.name = os.path.splitext(os.path.basename(f))[0]
++            retargeted_action = source_action
++
++        # Stash the action onto char_armature NLA tracks
++        if not char_armature.animation_data:
++            char_armature.animation_data_create()
++        track = char_armature.animation_data.nla_tracks.new()
++        track.name = retargeted_action.name
++        track.mute = True
++        track.strips.new(retargeted_action.name, int(retargeted_action.frame_range[0]), retargeted_action)
++
++        preserved_actions.append(retargeted_action)
++
++        for obj in anim_objs:
++            bpy.data.objects.remove(obj, do_unlink=True)
++
++    # Set the first action as active
++    if preserved_actions:
++        char_armature.animation_data.action = preserved_actions[0]
++
++    # Clean up all other actions
++    for action in list(bpy.data.actions):
++        if action not in preserved_actions:
++            try:
+                 bpy.data.actions.remove(action, do_unlink=True)
+-    for obj in anim_objs:
+-        bpy.data.objects.remove(obj, do_unlink=True)
++            except Exception:
++                pass
+ 
+     if to_tris:
+         mesh_quads2tris(char_objs)

@@ -1,8 +1,53 @@
 diff --git a/app.py b/app.py
-index 3db1c1b..f72cde4 100644
+index 3db1c1b..1db1189 100644
 --- a/app.py
 +++ b/app.py
-@@ -1088,7 +1088,7 @@ def vis_blender(
+@@ -1024,6 +1024,17 @@ def vis_blender(
+             db.gs_rest = db.gs_rest.numpy()
+     template_path = TEMPLATE_PATH_ADD if joints_additional else TEMPLATE_PATH
+ 
++    anim_paths = []
++    if animation_file is not None:
++        anim_paths = [p.strip() for p in animation_file.replace('\r', '\n').split('\n') if p.strip()]
++        for anim_path in anim_paths:
++            if not os.path.isfile(anim_path):
++                raise gr.Error(f"Animation file {anim_path} does not exist")
++        if anim_paths and not reset_to_rest:
++            gr.Warning(
++                "'Reset to Rest' is not enabled, so the animation may be incorrect if the input is not in T-pose"
++            )
++
+     data = dict(
+         mesh=db.mesh,
+         gs=db.gs_rest if reset_to_rest else db.gs,
+@@ -1033,14 +1044,8 @@ def vis_blender(
+         pose=db.pose,
+         bones_idx_dict=dict(bones_idx_dict_joints),
+         pose_ignore_list=get_pose_ignore_list(rest_pose_type, ignore_pose_parts),
++        animation_paths=anim_paths,
+     )
+-    if animation_file is not None:
+-        if not os.path.isfile(animation_file):
+-            raise gr.Error(f"Animation file {animation_file} does not exist")
+-        if not reset_to_rest:
+-            gr.Warning(
+-                "'Reset to Rest' is not enabled, so the animation may be incorrect if the input is not in T-pose"
+-            )
+ 
+     if is_main_thread():
+         from argparse import Namespace
+@@ -1076,8 +1081,8 @@ def vis_blender(
+                 cmd += " --reset_to_rest"
+             if remove_fingers:
+                 cmd += " --remove_fingers"
+-            if animation_file is not None:
+-                cmd += f" --animation_path '{os.path.abspath(animation_file)}'"
++            if anim_paths:
++                cmd += f" --animation_path '{os.path.abspath(anim_paths[0])}'"
+                 if retarget:
+                     cmd += " --retarget"
+                 if inplace:
+@@ -1088,7 +1093,7 @@ def vis_blender(
  
      print(f"Output animatable model: '{db.anim_path}'")
  
@@ -11,7 +56,7 @@ index 3db1c1b..f72cde4 100644
          with tempfile.TemporaryDirectory() as tmpdir:
              # https://github.com/facebookincubator/FBX2glTF
              fbx2glb_path = "util/FBX2glTF"
-@@ -1098,7 +1098,6 @@ def vis_blender(
+@@ -1098,7 +1103,6 @@ def vis_blender(
              os.system(fbx2glb_cmd)
              print(f"Output visualization: '{db.anim_vis_path}'")
      else:
@@ -19,3 +64,4 @@ index 3db1c1b..f72cde4 100644
          db.anim_vis_path = None
  
      anim_path = db.anim_path
+	 

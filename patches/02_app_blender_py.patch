@@ -1,8 +1,29 @@
 diff --git a/app_blender.py b/app_blender.py
-index c8bd8b4..acc5b8e 100644
+index c8bd8b4..60500fe 100644
 --- a/app_blender.py
 +++ b/app_blender.py
-@@ -86,7 +86,8 @@ def main(args: argparse.Namespace):
+@@ -51,6 +51,20 @@ def main(args: argparse.Namespace):
+         bones_idx_dict: dict[str, int] = bones_idx_dict.item()
+     pose_ignore_list = list(data.get("pose_ignore_list", []))
+ 
++    animation_paths = []
++    if hasattr(data, "get"):
++        animation_paths = data.get("animation_paths", [])
++    elif "animation_paths" in data.files:
++        animation_paths = data["animation_paths"]
++
++    if isinstance(animation_paths, np.ndarray):
++        animation_paths = [str(x) for x in animation_paths]
++    else:
++        animation_paths = [str(x) for x in animation_paths] if animation_paths else []
++
++    if not animation_paths and args.animation_path:
++        animation_paths = [p.strip() for p in args.animation_path.replace('\r', '\n').split('\n') if p.strip()]
++
+     if args.remove_fingers:
+         joints = remove_fingers_from_data(joints, bones_idx_dict)
+         joints_tail = remove_fingers_from_data(joints_tail, bones_idx_dict)
+@@ -86,7 +100,8 @@ def main(args: argparse.Namespace):
              armature_obj.matrix_world.identity()
          blender_utils.update()
  
@@ -12,7 +33,28 @@ index c8bd8b4..acc5b8e 100644
              if not args.keep_raw:
                  verts = mesh.vertices
                  verts[:, 1], verts[:, 2] = verts[:, 2].copy(), -verts[:, 1].copy()
-@@ -172,7 +173,8 @@ def main(args: argparse.Namespace):
+@@ -136,9 +151,9 @@ def main(args: argparse.Namespace):
+                     export_rest_position_armature=False,
+                     # export_yup=False,
+                 )
+-        if args.animation_path:
++        if animation_paths:
+             blender_utils.load_mixamo_anim(
+-                [armature_obj, mesh_obj], args.animation_path, do_retarget=args.retarget, inplace=args.inplace
++                [armature_obj, mesh_obj], animation_paths, do_retarget=args.retarget, inplace=args.inplace
+             )
+ 
+         blender_utils.update()
+@@ -148,7 +163,7 @@ def main(args: argparse.Namespace):
+                 check_existing=False,
+                 use_selection=False,
+                 add_leaf_bones=False,
+-                bake_anim=bool(args.animation_path),
++                bake_anim=bool(animation_paths),
+                 path_mode="COPY",
+                 embed_textures=True,
+             )
+@@ -172,7 +187,8 @@ def main(args: argparse.Namespace):
  
              if gs is not None:
                  mesh_obj.hide_set(True)
@@ -22,3 +64,4 @@ index c8bd8b4..acc5b8e 100644
                      gs = torch.from_numpy(gs)
                      gs = transform_gs(gs, transform=(Scale(1 / scaling)))
                      save_gs(gs, f.name)
+					 
